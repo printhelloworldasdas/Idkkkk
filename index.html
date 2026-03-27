@@ -2,99 +2,118 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Roblox Stealth Bypass FIX</title>
+    <title>Roblox Stealth Saturator</title>
     <style>
-        body { font-family: sans-serif; background: #111; color: #eee; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .box { background: #222; padding: 30px; border-radius: 15px; border: 2px solid #00ff88; text-align: center; width: 350px; }
-        h1 { color: #00ff88; font-size: 20px; }
-        input { margin: 20px 0; display: block; width: 100%; }
-        button { background: #00ff88; color: #000; border: none; padding: 15px; border-radius: 8px; font-weight: bold; cursor: pointer; width: 100%; }
-        #status { margin-top: 15px; font-size: 13px; font-weight: bold; }
+        body { font-family: 'Segoe UI', sans-serif; background: #0a0a0a; color: #00ff88; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .panel { background: #151515; padding: 30px; border-radius: 20px; border: 1px solid #333; box-shadow: 0 0 30px rgba(0,255,136,0.1); width: 380px; text-align: center; }
+        h1 { font-size: 22px; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 2px; }
+        p { color: #666; font-size: 11px; margin-bottom: 25px; }
+        .control-box { text-align: left; background: #1d1d1d; padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #222; }
+        label { display: block; font-size: 10px; color: #888; margin-bottom: 8px; }
+        input[type="range"] { width: 100%; accent-color: #00ff88; cursor: pointer; }
+        input[type="file"] { margin: 15px 0; font-size: 12px; color: #00ff88; }
+        button { background: #00ff88; color: #000; border: none; padding: 15px; border-radius: 10px; font-weight: 900; cursor: pointer; width: 100%; transition: 0.2s; }
+        button:hover { background: #00cc6e; transform: scale(1.02); }
+        #status { margin-top: 15px; font-size: 12px; color: #fff; font-weight: bold; }
     </style>
 </head>
 <body>
-    <div class="box">
-        <h1>Stealth Bypass FIX</h1>
-        <p style="font-size: 11px; color: #888;">Optimizado para evitar bloqueos del navegador.</p>
-        
-        <input type="file" id="audioInput" accept="audio/*">
-        
-        <button onclick="processAudio()">PROCESAR Y DESCARGAR</button>
-        <div id="status">Esperando archivo...</div>
+
+<div class="panel">
+    <h1>Stealth Saturator</h1>
+    <p>Bypass de Hash + Saturación Anti-IA de Voz</p>
+    
+    <input type="file" id="audioInput" accept="audio/*">
+    
+    <div class="control-box">
+        <label>POTENCIA DE SATURACIÓN (CAMUFLAJE):</label>
+        <input type="range" id="satLevel" min="1" max="6" step="0.5" value="2.5">
+        <label style="margin-top:10px">RUIDO DE HASH (DITHER):</label>
+        <input type="range" id="noiseLevel" min="0.002" max="0.015" step="0.001" value="0.006">
     </div>
 
-    <script>
-        async function processAudio() {
-            const input = document.getElementById('audioInput');
-            const status = document.getElementById('status');
-            
-            if (input.files.length === 0) return alert("Selecciona un audio primero");
+    <button onclick="process()">PROCESAR Y DESCARGAR .WAV</button>
+    <div id="status">Listo para procesar.</div>
+</div>
 
-            status.innerText = "PROCESANDO... (No cierres la pestaña)";
-            status.style.color = "#ffaa00";
+<script>
+    async function process() {
+        const input = document.getElementById('audioInput');
+        const status = document.getElementById('status');
+        if (input.files.length === 0) return alert("Selecciona un audio");
 
-            try {
-                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                const arrayBuffer = await input.files[0].arrayBuffer();
-                const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+        status.innerText = "Saturando ondas...";
+        status.style.color = "#00ff88";
 
-                // Forzamos 1 canal (Mono) para que pese menos de 20MB
-                const newBuffer = audioCtx.createBuffer(1, audioBuffer.length, audioBuffer.sampleRate);
-                const oldData = audioBuffer.getChannelData(0);
-                const newData = newBuffer.getChannelData(0);
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const arrayBuffer = await input.files.arrayBuffer();
+        const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
 
-                // Bypass Técnico: Inversión de fase + Hash Randomizer
-                for (let i = 0; i < audioBuffer.length; i++) {
-                    let s = oldData[i] * -0.98; // Inversión de fase
-                    s += (Math.random() * 2 - 1) * 0.005; // Ruido Dither (cambia el hash)
-                    newData[i] = s;
-                }
+        // CONFIG: Mono (1 canal) para no pasar de 20MB
+        const newBuffer = audioCtx.createBuffer(1, audioBuffer.length, audioBuffer.sampleRate);
+        const data = audioBuffer.getChannelData(0);
+        const output = newBuffer.getChannelData(0);
 
-                // Generar WAV manualmente (más rápido)
-                const wavBuffer = bufferToWav(newBuffer);
-                const blob = new Blob([wavBuffer], { type: 'audio/wav' });
-                
-                // Forzar descarga
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = "bypass_ready_" + Date.now() + ".wav";
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
+        const saturation = parseFloat(document.getElementById('satLevel').value);
+        const noise = parseFloat(document.getElementById('noiseLevel').value);
 
-                status.innerText = "¡DESCARGADO CON ÉXITO!";
-                status.style.color = "#00ff88";
-            } catch (e) {
-                console.error(e);
-                status.innerText = "ERROR: El audio es demasiado largo.";
-                status.style.color = "#ff4444";
-            }
+        for (let i = 0; i < audioBuffer.length; i++) {
+            // 1. Aplicar Ganancia de entrada (Saturación)
+            let s = data[i] * saturation;
+
+            // 2. Soft Clipping (Distorsión analógica para confundir IA)
+            if (s > 1) s = (3 - (2 - s * 3) ** 2) / 3;
+            if (s < -1) s = -(3 - (2 - Math.abs(s) * 3) ** 2) / 3;
+
+            // 3. Inversión de Fase (Hash Bypass)
+            s = s * -0.99;
+
+            // 4. Añadir ruido de camuflaje
+            s += (Math.random() * 2 - 1) * noise;
+
+            output[i] = s;
         }
 
-        function bufferToWav(abuffer) {
-            let numOfChan = abuffer.numberOfChannels,
-                length = abuffer.length * numOfChan * 2 + 44,
-                buffer = new ArrayBuffer(length),
-                view = new DataView(buffer),
-                pos = 0;
+        // Generar archivo WAV
+        const wavData = createWav(newBuffer);
+        const sizeMB = (wavData.byteLength / (1024 * 1024)).toFixed(2);
 
-            const setU32 = (d) => { view.setUint32(pos, d, true); pos += 4; };
-            const setU16 = (d) => { view.setUint16(pos, d, true); pos += 2; };
-
-            setU32(0x46464952); setU32(length - 8); setU32(0x45564157);
-            setU32(0x20746d66); setU32(16); setU16(1); setU16(numOfChan);
-            setU32(abuffer.sampleRate); setU32(abuffer.sampleRate * 2 * numOfChan);
-            setU16(numOfChan * 2); setU16(16); setU32(0x61746164); setU32(length - pos - 4);
-
-            const data = abuffer.getChannelData(0);
-            for (let i = 0; i < abuffer.length; i++) {
-                let s = Math.max(-1, Math.min(1, data[i]));
-                view.setInt16(pos, s < 0 ? s * 32768 : s * 32767, true);
-                pos += 2;
-            }
-            return buffer;
+        if (sizeMB > 19.9) {
+            status.innerText = `PESO EXCEDIDO: ${sizeMB}MB. Recorta el audio.`;
+            status.style.color = "#ff4444";
+        } else {
+            const blob = new Blob([wavData], { type: 'audio/wav' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `bypass_sat_${Date.now()}.wav`;
+            a.click();
+            status.innerText = `¡LISTO! (${sizeMB}MB) Descargado.`;
         }
-    </script>
+    }
+
+    function createWav(abuffer) {
+        let length = abuffer.length * 2 + 44;
+        let buffer = new ArrayBuffer(length);
+        let view = new DataView(buffer);
+        let pos = 0;
+
+        const u32 = (d) => { view.setUint32(pos, d, true); pos += 4; };
+        const u16 = (d) => { view.setUint16(pos, d, true); pos += 2; };
+
+        u32(0x46464952); u32(length - 8); u32(0x45564157);
+        u32(0x20746d66); u32(16); u16(1); u16(1);
+        u32(abuffer.sampleRate); u32(abuffer.sampleRate * 2);
+        u16(2); u16(16); u32(0x61746164); u32(length - pos - 4);
+
+        const data = abuffer.getChannelData(0);
+        for (let i = 0; i < data.length; i++) {
+            let s = Math.max(-1, Math.min(1, data[i]));
+            view.setInt16(pos, s < 0 ? s * 32768 : s * 32767, true);
+            pos += 2;
+        }
+        return buffer;
+    }
+</script>
 </body>
 </html>
