@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Roblox Audio Bypass Pro</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #121212; color: #e0e0e0; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .container { background: #1e1e1e; padding: 40px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: center; width: 400px; border: 1px solid #333; }
+        h1 { color: #00a2ff; margin-bottom: 10px; font-size: 24px; }
+        p { font-size: 14px; color: #888; margin-bottom: 25px; }
+        input[type="file"] { margin-bottom: 20px; color: #888; }
+        .controls { text-align: left; margin-bottom: 20px; background: #252525; padding: 15px; border-radius: 10px; }
+        label { display: block; font-size: 12px; margin-bottom: 5px; color: #aaa; }
+        input[type="range"] { width: 100%; margin-bottom: 10px; accent-color: #00a2ff; }
+        button { background: #00a2ff; border: none; padding: 12px 25px; color: white; font-weight: bold; cursor: pointer; border-radius: 8px; width: 100%; transition: 0.3s; }
+        button:hover { background: #007acc; transform: translateY(-2px); }
+        #status { margin-top: 15px; font-size: 13px; color: #4CAF50; display: none; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Bypass Tool v2</h1>
+    <p>Modifica el Hash y camufla voces sin alterar el tono (Pitch).</p>
+    
+    <input type="file" id="audioInput" accept="audio/*">
+    
+    <div class="controls">
+        <label>Nivel de Distorsión (Saturación de voz):</label>
+        <input type="range" id="distLevel" min="1" max="5" step="0.1" value="1.5">
+        
+        <label>Ruido de Camuflaje (Dither):</label>
+        <input type="range" id="noiseLevel" min="0.001" max="0.01" step="0.001" value="0.003">
+    </div>
+
+    <button onclick="processAndDownload()">Procesar y Descargar .WAV</button>
+    <div id="status">¡Procesado con éxito! Revisa tus descargas.</div>
+</div>
+
+<!-- Librería para exportar a WAV -->
+<script src="https://jsdelivr.net"></script>
+
+<script>
+    async function processAndDownload() {
+        const input = document.getElementById('audioInput');
+        const status = document.getElementById('status');
+        
+        if (input.files.length === 0) return alert("Selecciona un audio primero");
+
+        status.style.display = "block";
+        status.innerText = "Procesando huella digital...";
+        status.style.color = "#ffaa00";
+
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const arrayBuffer = await input.files[0].arrayBuffer();
+        const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+
+        // Configuración de efectos
+        const dist = parseFloat(document.getElementById('distLevel').value);
+        const noise = parseFloat(document.getElementById('noiseLevel').value);
+
+        const newBuffer = audioCtx.createBuffer(
+            audioBuffer.numberOfChannels,
+            audioBuffer.length,
+            audioBuffer.sampleRate
+        );
+
+        for (let channel = 0; channel < audioBuffer.numberOfChannels; channel++) {
+            const oldData = audioBuffer.getChannelData(channel);
+            const newData = newBuffer.getChannelData(channel);
+            
+            for (let i = 0; i < audioBuffer.length; i++) {
+                // 1. Inversión de fase y Saturación (Soft Clipping)
+                let s = oldData[i] * dist;
+                if (s > 1) s = 1; if (s < -1) s = -1; // Evita earrape real, solo satura
+                
+                // 2. Invertir polaridad sutilmente
+                s = s * -0.98;
+
+                // 3. Añadir ruido blanco (Dither) para romper el hash
+                s += (Math.random() * 2 - 1) * noise;
+
+                newData[i] = s;
+            }
+        }
+
+        // Convertir a WAV y Descargar
+        const wavData = bufferToWave(newBuffer, newBuffer.length);
+        const blob = new Blob([wavData], { type: 'audio/wav' });
+        const url = URL.createObjectURL(blob);
+        
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = "bypass_audio_" + Date.now() + ".wav";
+        anchor.click();
+
+        status.innerText = "¡Listo! Archivo descargado.";
+        status.style.color = "#4CAF50";
+    }
+
+    // Función auxiliar para generar el archivo WAV binario
+    function bufferToWave(abuffer, len) {
+        let numOfChan = abuffer.numberOfChannels,
+            length = len * numOfChan * 2 + 44,
+            buffer = new ArrayBuffer(length),
+            view = new DataView(buffer),
+            channels = [], i, sample,
+            offset = 0,
+            pos = 0;
+
+        setUint32(0x46464952);                         
+        setUint32(length - 8);                         
+        setUint32(0x45564157);                         
+        setUint32(0x20746d66);                         
+        setUint32(16);                                 
+        setUint16(1);                                  
+        setUint16(numOfChan);
+        setUint32(abuffer.sampleRate);
+        setUint32(abuffer.sampleRate * 2 * numOfChan);
+        setUint16(numOfChan * 2);                      
+        setUint16(16);                                 
+        setUint32(0x61746164);                         
+        setUint32(length - pos - 4);                   
+
+        for(i = 0; i < abuffer.numberOfChannels; i++) channels.push(abuffer.getChannelData(i));
+
+        while(pos < length) {
+            for(i = 0; i < numOfChan; i++) {             
+                sample = Math.max(-1, Math.min(1, channels[i][offset])); 
+                sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767)|0; 
+                view.setInt16(pos, sample, true);          
+                pos += 2;
+            }
+            offset++;                                     
+        }
+
+        return buffer;
+
+        function setUint16(data) { view.setUint16(pos, data, true); pos += 2; }
+        function setUint32(data) { view.setUint32(pos, data, true); pos += 4; }
+    }
+</script>
+
+</body>
+</html>
+
